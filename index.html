@@ -91,26 +91,57 @@
             <!-- END START MONTH INPUT -->
 
             <!-- Rate Change Inputs -->
-            <div class="col-span-full text-lg font-semibold text-blue-700 mb-2 mt-4 border-t pt-4 border-blue-200">Optional: Future Rate Change Simulation</div>
-
-            <!-- NEW RATE CHANGE DATE SELECTORS -->
+            <div class="col-span-full text-lg font-semibold text-blue-700 mb-2 mt-4 border-t pt-4 border-blue-200">Repo Rate Change Simulation (Up to 3 Changes)</div>
+            
+            <!-- Rate Change 1 -->
             <div class="flex flex-col col-span-2 sm:col-span-1">
-                <label class="text-sm font-medium text-gray-700 mb-1">Rate Change Date</label>
+                <label class="text-sm font-medium text-gray-700 mb-1">Change 1 Date</label>
                 <div class="flex gap-2">
-                    <select id="rate-change-month-select" class="input-field w-1/2"></select>
-                    <select id="rate-change-year-select" class="input-field w-1/2"></select>
+                    <select id="rate-change-month-1" class="input-field w-1/2"></select>
+                    <select id="rate-change-year-1" class="input-field w-1/2"></select>
                 </div>
             </div>
-
-            <!-- NEW INTEREST RATE INPUT -->
             <div class="flex flex-col col-span-2 sm:col-span-1">
-                <label for="new-rate" class="text-sm font-medium text-gray-700 mb-1">New Interest Rate</label>
+                <label for="new-rate-1" class="text-sm font-medium text-gray-700 mb-1">New Rate 1</label>
                 <div class="input-group">
-                    <input type="number" id="new-rate" placeholder="e.g., 9.0" step="0.01" class="input-field-group border-r-0" min="0.1" max="50">
+                    <input type="number" id="new-rate-1" placeholder="e.g., 9.0" step="0.01" class="input-field-group border-r-0" min="0.1" max="50">
                     <span class="input-unit border-l-0">%</span>
                 </div>
             </div>
-            <!-- REMOVED OLD RATE CHANGE MONTH INPUT -->
+
+            <!-- Rate Change 2 -->
+            <div class="flex flex-col col-span-2 sm:col-span-1">
+                <label class="text-sm font-medium text-gray-700 mb-1">Change 2 Date</label>
+                <div class="flex gap-2">
+                    <select id="rate-change-month-2" class="input-field w-1/2"></select>
+                    <select id="rate-change-year-2" class="input-field w-1/2"></select>
+                </div>
+            </div>
+            <div class="flex flex-col col-span-2 sm:col-span-1">
+                <label for="new-rate-2" class="text-sm font-medium text-gray-700 mb-1">New Rate 2</label>
+                <div class="input-group">
+                    <input type="number" id="new-rate-2" placeholder="e.g., 7.5" step="0.01" class="input-field-group border-r-0" min="0.1" max="50">
+                    <span class="input-unit border-l-0">%</span>
+                </div>
+            </div>
+            
+            <!-- Rate Change 3 -->
+            <div class="flex flex-col col-span-2 sm:col-span-1">
+                <label class="text-sm font-medium text-gray-700 mb-1">Change 3 Date</label>
+                <div class="flex gap-2">
+                    <select id="rate-change-month-3" class="input-field w-1/2"></select>
+                    <select id="rate-change-year-3" class="input-field w-1/2"></select>
+                </div>
+            </div>
+            <div class="flex flex-col col-span-2 sm:col-span-1">
+                <label for="new-rate-3" class="text-sm font-medium text-gray-700 mb-1">New Rate 3</label>
+                <div class="input-group">
+                    <input type="number" id="new-rate-3" placeholder="e.g., 8.0" step="0.01" class="input-field-group border-r-0" min="0.1" max="50">
+                    <span class="input-unit border-l-0">%</span>
+                </div>
+            </div>
+
+
             
             <button onclick="calculateLoan()" id="calculate-btn" class="col-span-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md">
                 Proceed
@@ -277,8 +308,10 @@
         let initialTotalInterest = 0;
         let initialTotalPayments = 0;
         let loanStartDateString = ''; // YYYY-MM string for the loan start date
-        let rateChangeMonth = 9999; // Month index when rate changes
-        let newRatePercent = 0; // New annual rate percentage
+        
+        // --- NEW GLOBAL STATE FOR MULTI-RATE CHANGES ---
+        let rateChanges = []; // Array of { monthIndex: number, monthlyRate: number, annualRate: number }
+        // --- END NEW GLOBAL STATE ---
         
         // Storage for custom prepayments: Array of { monthIndex: number, date: string, amount: number }
         let customPayments = []; 
@@ -351,12 +384,13 @@
 
         /**
          * Converts a prepayment date (YYYY-MM) into a 1-based month index relative to the loan start date.
-         * @param {string} prepaymentDateString - YYYY-MM string of the prepayment.
+         * @param {string} dateString - YYYY-MM string of the event.
          * @param {string} loanStartDateString - YYYY-MM string of the loan start.
          * @returns {number} The 1-based month index (e.g., 1 for the first payment month).
          */
-        function getMonthIndexFromDate(prepaymentDateString, loanStartDateString) {
-            const [pYear, pMonth] = prepaymentDateString.split('-').map(Number);
+        function getMonthIndexFromDate(dateString, loanStartDateString) {
+            if (!dateString) return 9999;
+            const [pYear, pMonth] = dateString.split('-').map(Number);
             const [sYear, sMonth] = loanStartDateString.split('-').map(Number);
             
             // Months elapsed since loan start (0-based)
@@ -417,8 +451,8 @@
                     // and handle special indicators like "(New)" for clean numbers
                     let content = cell.textContent.trim();
                     
-                    // Remove currency symbols, commas, and formatting tags like '(New)'
-                    content = content.replace(/₹/g, '').replace(/,/g, '').replace(/\(New\)/g, '').trim();
+                    // Remove currency symbols, commas, and formatting tags like '(New)' and Rate change indicators
+                    content = content.replace(/₹/g, '').replace(/,/g, '').replace(/\(New\)/g, '').replace(/\(Rate: [0-9.]+%\)/g, '').trim();
 
                     // Replace non-breaking spaces if any
                     content = content.replace(/\s+/g, ' '); 
@@ -468,23 +502,31 @@
 
         /**
          * Generates the amortization schedule up to a maximum number of payments (months).
-         * FIX: Added rate change handling logic.
+         * FIX: Modified to handle an array of rate changes.
          */
-        function generateAmortizationSchedule(principal, initialMonthlyRate, emi, maxMonths, prepayments = {}, rateChangeMonth = 9999, newMonthlyRate = initialMonthlyRate) {
+        function generateAmortizationSchedule(principal, initialMonthlyRate, emi, maxMonths, prepayments = {}, rateChanges = []) {
             let outstanding = principal;
             let totalInterest = 0;
             let totalPayments = 0;
             let schedule = [];
             let currentMonthlyRate = initialMonthlyRate;
+            let currentAnnualRate = initialMonthlyRate * 12 * 100;
+
+            // Sort rate changes by monthIndex for deterministic processing
+            rateChanges.sort((a, b) => a.monthIndex - b.monthIndex);
+            let nextRateChangeIndex = 0;
+
 
             for (let monthIndex = 1; monthIndex <= maxMonths; monthIndex++) {
                 if (outstanding <= 0) break;
 
-                // --- RATE CHANGE LOGIC ---
-                if (monthIndex === rateChangeMonth) {
-                    currentMonthlyRate = newMonthlyRate;
+                // --- MULTI-RATE CHANGE LOGIC ---
+                while (nextRateChangeIndex < rateChanges.length && monthIndex === rateChanges[nextRateChangeIndex].monthIndex) {
+                    currentMonthlyRate = rateChanges[nextRateChangeIndex].monthlyRate;
+                    currentAnnualRate = rateChanges[nextRateChangeIndex].annualRate;
+                    nextRateChangeIndex++;
                 }
-                // --- END RATE CHANGE LOGIC ---
+                // --- END MULTI-RATE CHANGE LOGIC ---
                 
                 // 1. Calculate Interest for the month and round it to the nearest rupee
                 let interest = outstanding * currentMonthlyRate;
@@ -538,7 +580,7 @@
                     outstanding: outstandingEnd,
                     isPrepaymentMonth: prepayment > 0,
                     // Track rate for display purposes
-                    rate: currentMonthlyRate * 12 * 100 
+                    rate: currentAnnualRate
                 });
 
                 totalInterest += interestPaid;
@@ -786,7 +828,7 @@
 
         /**
          * Primary function to calculate the initial loan and display the schedule.
-         * FIX: Now calculates the base schedule including a rate change.
+         * FIX: Now processes multiple rate changes.
          */
         function calculateLoan() {
             const principal = parseFloat(document.getElementById('principal').value);
@@ -794,15 +836,55 @@
             const tenureYears = parseFloat(document.getElementById('tenure').value);
             const startDateString = getLoanStartDateString(); // Get YYYY-MM string from selects
             
-            // New Rate Change Inputs (Reading from selectors now)
-            const rateChangeMonthValue = document.getElementById('rate-change-month-select').value;
-            const rateChangeYearValue = document.getElementById('rate-change-year-select').value;
-            const inputNewRatePercent = parseFloat(document.getElementById('new-rate').value);
+            // --- RESET PREPAYMENT & RATE CHANGE STATE ---
+            document.getElementById('prepayment-type').value = 'none';
+            document.getElementById('prepayment-amount').value = '0';
+            customPayments = []; // Clear custom payments array
+            rateChanges = []; // Clear rate changes array
+            renderCustomPaymentsList(); // Clear UI list
+            updatePrepaymentInputs(); // Reset UI visibility
+            // ------------------------------------------
 
-            let inputRateChangeMonth = 9999;
-            let rateChangeDateString = null;
-            
-            // Input Validation
+            const initialMonthlyRate = (ratePercent / 100) / 12;
+            const tenureMonths = Math.round(tenureYears * 12);
+            const maxMonths = 300; 
+
+            // 1. Validate and Collect Multi-Rate Changes
+            for (let i = 1; i <= 3; i++) {
+                const monthSelect = document.getElementById(`rate-change-month-${i}`);
+                const yearSelect = document.getElementById(`rate-change-year-${i}`);
+                const newRateInput = document.getElementById(`new-rate-${i}`);
+                
+                const rateChangeDateString = monthSelect.value && yearSelect.value ? 
+                                             `${yearSelect.value}-${monthSelect.value}` : null;
+                const newRate = parseFloat(newRateInput.value);
+
+                if (rateChangeDateString && newRate > 0 && !isNaN(newRate)) {
+                    const monthIndex = getMonthIndexFromDate(rateChangeDateString, startDateString);
+                    
+                    if (monthIndex < 1 || monthIndex > tenureYears * 12) {
+                        showMessage('Rate Change Error', `Rate Change ${i} Date (${getDateForMonth(monthIndex, startDateString)}) must be between the first month and the loan's original end month.`, 'error');
+                        return;
+                    }
+                    if (newRateInput.value === '') {
+                        showMessage('Rate Change Error', `Please enter a valid New Rate for Change ${i}.`, 'error');
+                        return;
+                    }
+                    
+                    rateChanges.push({
+                        monthIndex: monthIndex,
+                        monthlyRate: (newRate / 100) / 12,
+                        annualRate: newRate
+                    });
+                } else if (newRateInput.value !== '' && (!rateChangeDateString || isNaN(newRate) || newRate <= 0)) {
+                    // Partial input error
+                    showMessage('Rate Change Error', `Incomplete Rate Change ${i} data. Please provide both a valid Date and a positive New Rate.`, 'error');
+                    return;
+                }
+            }
+
+
+            // Input Validation (Standard)
             if (!principal || !ratePercent || !tenureYears || !startDateString) {
                 showMessage('Missing Information', 'Please fill in the Principal, Interest Rate, Tenure, and Loan Start Month/Year.', 'error');
                 return;
@@ -812,43 +894,6 @@
                 return;
             }
 
-            // --- PROCESS RATE CHANGE DATE ---
-            if (rateChangeMonthValue && rateChangeYearValue) {
-                rateChangeDateString = `${rateChangeYearValue}-${rateChangeMonthValue}`;
-                inputRateChangeMonth = getMonthIndexFromDate(rateChangeDateString, startDateString);
-            }
-
-            // Check if rate change date is valid and rate is provided
-            if (inputRateChangeMonth !== 9999) {
-                if (!inputNewRatePercent || isNaN(inputNewRatePercent) || inputNewRatePercent <= 0) {
-                     showMessage('Rate Change Error', 'Please enter a valid New Interest Rate if Rate Change Date is specified.', 'error');
-                     return;
-                }
-                if (inputRateChangeMonth < 1 || inputRateChangeMonth > tenureYears * 12) {
-                    showMessage('Rate Change Error', `The Rate Change Date (${getDateForMonth(inputRateChangeMonth, startDateString)}) must be within the loan term (${tenureYears} years).`, 'error');
-                    return;
-                }
-            }
-            // --------------------------------
-
-            
-            // --- RESET PREPAYMENT STATE ---
-            document.getElementById('prepayment-type').value = 'none';
-            document.getElementById('prepayment-amount').value = '0';
-            customPayments = []; // Clear custom payments array
-            renderCustomPaymentsList(); // Clear UI list
-            updatePrepaymentInputs(); // Reset UI visibility
-            // -----------------------------
-
-            const initialMonthlyRate = (ratePercent / 100) / 12;
-            const tenureMonths = Math.round(tenureYears * 12);
-            const maxMonths = 300; 
-            
-            // Store global rate change details
-            rateChangeMonth = inputRateChangeMonth;
-            newRatePercent = inputNewRatePercent || ratePercent; // Use initial rate if new rate is not set
-            const newMonthlyRate = (newRatePercent / 100) / 12;
-
             // Store initial values globally
             initialPrincipal = principal;
             initialRate = ratePercent;
@@ -856,20 +901,18 @@
             loanStartDateString = startDateString; // Store the start date
 
             // Calculate Initial EMI (P, r, n) based on the INITIAL rate and ORIGINAL term
-            // NOTE: The initial EMI calculation does NOT account for future rate changes, as per standard practice.
             const rawEmi = calculateEMI(principal, initialMonthlyRate, tenureMonths);
             const emi = roundToRupee(rawEmi);
             initialEMI = emi;
 
-            // Generate the baseline schedule (NO prepayments, but WITH rate change)
+            // Generate the baseline schedule (NO prepayments, but WITH rate changes)
             const result = generateAmortizationSchedule(
                 principal, 
                 initialMonthlyRate, 
                 emi, 
                 maxMonths, 
                 {}, // No prepayments
-                rateChangeMonth, 
-                newMonthlyRate
+                rateChanges
             );
             
             // Check for calculation errors
@@ -898,11 +941,30 @@
         }
 
         /**
+         * Finds the applicable monthly rate for a given month index, considering all defined rate changes.
+         * @param {number} monthIndex - The 1-based month index.
+         * @returns {number} The current monthly rate (decimal).
+         */
+        function getCurrentMonthlyRate(monthIndex) {
+            let currentRate = (initialRate / 100) / 12; // Start with initial rate
+
+            // Iterate through sorted rate changes
+            for (const change of rateChanges) {
+                if (change.monthIndex <= monthIndex) {
+                    currentRate = change.monthlyRate;
+                } else {
+                    // Since rateChanges is sorted, we can stop early
+                    break; 
+                }
+            }
+            return currentRate;
+        }
+
+        /**
          * Handles the prepayment input, recalculates the loan, and updates the display.
          */
         function applyPrepayments() {
             const initialMonthlyRate = (initialRate / 100) / 12;
-            const newMonthlyRate = (newRatePercent / 100) / 12;
             const prepaymentType = document.getElementById('prepayment-type').value;
             const reductionOption = document.getElementById('reduction-option').value;
             const startDateString = loanStartDateString; // Use the stored start date
@@ -974,15 +1036,13 @@
             }
 
             // 2. Initial Run with Prepayments (Tenure Reduction Basis)
-            // This run uses the initial EMI but includes both prepayments AND rate changes.
             const initialPrepaymentRun = generateAmortizationSchedule(
                 initialPrincipal, 
                 initialMonthlyRate, 
                 initialEMI, 
                 maxMonths, 
                 prepaymentsMap, 
-                rateChangeMonth, 
-                newMonthlyRate
+                rateChanges // Pass global rate changes
             );
             
             if (initialPrepaymentRun.schedule.length === 0 && initialPrincipal > 0) return;
@@ -1022,8 +1082,8 @@
                     pRecalc = initialPrepaymentRun.schedule[initialPrepaymentRun.schedule.length - 1].outstanding;
                 }
                 
-                // Determine the interest rate that applies FROM M_recalc onward (considering future rate changes)
-                const rateForRecalc = M_recalc >= rateChangeMonth ? newMonthlyRate : initialMonthlyRate;
+                // Determine the interest rate that applies FROM M_recalc onward
+                const rateForRecalc = getCurrentMonthlyRate(M_recalc);
                 
                 // Check if loan is already paid off
                 if (pRecalc <= 0) {
@@ -1039,8 +1099,6 @@
 
                     if (N_remaining > 0) {
                         // Calculate New EMI based on the reduced principal over the *original remaining tenure* at the *applicable rate*.
-                        // Note: If a rate change happens AFTER M_recalc, this EMI is only an approximation, but it's the standard EMI reduction calculation.
-                        // Since we already apply the actual future rate change in the amortization function, this new EMI calculation is correct for the immediate term.
                         const rawNewEmi = calculateEMI(pRecalc, rateForRecalc, N_remaining);
                         newEMI = roundToRupee(rawNewEmi);
                     } else {
@@ -1059,8 +1117,10 @@
                     
                     const maxMonthsPart2 = N_remaining;
                     
-                    // Generate Part 2 starting with the new principal and new EMI. 
-                    const part2RateChangeMonth = rateChangeMonth > M_recalc ? rateChangeMonth - lastProcessedMonthIndex : 9999;
+                    // Filter rate changes for Part 2 and adjust month indices
+                    const part2RateChanges = rateChanges.filter(c => c.monthIndex >= M_recalc)
+                                                      .map(c => ({...c, monthIndex: c.monthIndex - lastProcessedMonthIndex}));
+
                     
                     const resultPart2 = generateAmortizationSchedule(
                         pRecalc, 
@@ -1068,8 +1128,7 @@
                         newEMI, 
                         maxMonthsPart2, 
                         remainingPrepayments,
-                        part2RateChangeMonth,
-                        newMonthlyRate // The new rate for the change event
+                        part2RateChanges
                     );
                     
                     const schedulePart2 = resultPart2.schedule.map(item => ({
@@ -1138,4 +1197,182 @@
             document.getElementById('tenure-reduction-output').textContent = tenureReductionText;
             
             newEmiInfoText += ` Total Prepayment made: ${CURRENCY_FORMAT.format(totalPrepaymentAmount)}.`;
-            document.getElementById('new-emi-info').innerHTML = new
+            document.getElementById('new-emi-info').innerHTML = newEmiInfoText;
+
+
+            document.getElementById('savings-summary').classList.remove('hidden');
+
+            // 6. Render the Final Schedule
+            renderSchedule(newResult.schedule, startDateString, newEMI, M_recalc);
+        }
+        
+        /**
+         * Renders the amortization schedule table.
+         */
+        function renderSchedule(schedule, startDateString, currentEMI = initialEMI, recalcMonth = 9999) {
+            const tbody = document.getElementById('schedule-body');
+            tbody.innerHTML = '';
+            
+            const initialEMIValue = initialEMI;
+
+            schedule.forEach(item => {
+                const row = tbody.insertRow();
+                
+                const currentRate = item.rate;
+
+                let displayEMI = item.emi;
+                
+                if (item.outstanding <= 0 && item.month === schedule.length) {
+                     displayEMI = item.principal + item.interest + item.prepayment;
+                } else if (item.outstanding <= 0 && item.month < schedule.length) {
+                    displayEMI = 0;
+                } else if (item.month >= recalcMonth) {
+                    displayEMI = currentEMI;
+                } else {
+                    displayEMI = initialEMIValue;
+                }
+                
+                // Check if this month is a rate change month
+                const isRateChangeMonth = rateChanges.some(c => c.monthIndex === item.month);
+                
+                const rateChangeIndicator = isRateChangeMonth ? 
+                    `<span class="text-sm font-semibold text-purple-700">(Rate: ${item.rate.toFixed(2)}%)</span>` : '';
+
+                const emiFormat = (value) => {
+                    const formatted = CURRENCY_FORMAT.format(value);
+                    
+                    // EMI change indicator
+                    if (item.month >= recalcMonth && Math.abs(currentEMI - initialEMIValue) > 1 && value > 0) {
+                        const emiClass = (item.month === recalcMonth) ? 'text-red-600' : 'text-red-600';
+                        return `<span class="font-bold ${emiClass}">${formatted} (New)</span>`;
+                    }
+                    
+                    return formatted;
+                };
+                
+                // Styling for paid-off month
+                if (item.outstanding <= 0 && item.month === schedule.length) {
+                    row.classList.add('bg-green-100', 'font-bold');
+                } else if (item.isPrepaymentMonth) {
+                    row.classList.add('bg-yellow-100');
+                } else if (isRateChangeMonth) {
+                     row.classList.add('bg-purple-50'); // Highlight rate change months
+                }
+
+                row.innerHTML = `
+                    <td class="table-cell">${item.month}</td>
+                    <td class="table-cell whitespace-nowrap">${getDateForMonth(item.month, startDateString)} ${rateChangeIndicator}</td>
+                    <td class="table-cell">${emiFormat(displayEMI)}</td>
+                    <td class="table-cell ${item.prepayment > 0 ? 'font-bold text-blue-600' : 'text-gray-400'}">${CURRENCY_FORMAT.format(item.prepayment)}</td>
+                    <td class="table-cell">${CURRENCY_FORMAT.format(item.principal)}</td>
+                    <td class="table-cell">${CURRENCY_FORMAT.format(item.interest)}</td>
+                    <td class="table-cell ${item.outstanding <= 0 ? 'text-green-700 font-extrabold' : ''}">${CURRENCY_FORMAT.format(item.outstanding)}</td>
+                `;
+            });
+        }
+        
+        /**
+         * Populates the month and year select inputs.
+         * @param {HTMLElement} monthSelect - The month select element.
+         * @param {HTMLElement} yearSelect - The year select element.
+         */
+        function populateMonthYearSelects(monthSelect, yearSelect) {
+            const months = [
+                { value: '01', name: 'Jan' }, { value: '02', name: 'Feb' }, { value: '03', name: 'Mar' },
+                { value: '04', name: 'Apr' }, { value: '05', name: 'May' }, { value: '06', name: 'Jun' },
+                { value: '07', name: 'Jul' }, { value: '08', name: 'Aug' }, { value: '09', name: 'Sep' },
+                { value: '10', name: 'Oct' }, { value: '11', name: 'Nov' }, { value: '12', name: 'Dec' }
+            ];
+
+            // Clear existing options
+            monthSelect.innerHTML = '';
+            yearSelect.innerHTML = '';
+            
+            // Add a default blank/placeholder option for Rate Change selects
+            if (monthSelect.id.startsWith('rate-change')) {
+                monthSelect.insertAdjacentHTML('beforeend', '<option value="" selected>Month</option>');
+                yearSelect.insertAdjacentHTML('beforeend', '<option value="" selected>Year</option>');
+            }
+
+
+            // Populate months
+            months.forEach(month => {
+                const option = document.createElement('option');
+                option.value = month.value;
+                option.textContent = month.name;
+                monthSelect.appendChild(option);
+            });
+
+            // Populate years (Current Year +/- 25 years)
+            const currentYear = new Date().getFullYear();
+            const startYear = currentYear - 25;
+            const endYear = currentYear + 25;
+
+            for (let year = startYear; year <= endYear; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+            
+            // Set current month/year as default for Loan Start Date selects only
+            if (monthSelect.id.startsWith('start-')) {
+                 const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+                 monthSelect.value = currentMonth;
+                 yearSelect.value = currentYear;
+            }
+
+        }
+
+
+        // --- Initialization ---
+
+        window.onload = function() {
+            // Populate all static date selectors (Loan Start, Custom Prepayment)
+            populateMonthYearSelects(document.getElementById('start-month'), document.getElementById('start-year'));
+            populateMonthYearSelects(document.getElementById('custom-payment-month'), document.getElementById('custom-payment-year'));
+            
+            // Populate Rate Change Selects (3 instances)
+            populateMonthYearSelects(document.getElementById('rate-change-month-1'), document.getElementById('rate-change-year-1'));
+            populateMonthYearSelects(document.getElementById('rate-change-month-2'), document.getElementById('rate-change-year-2'));
+            populateMonthYearSelects(document.getElementById('rate-change-month-3'), document.getElementById('rate-change-year-3'));
+            
+            // Set the default date for Custom Prepayment to match Loan Start Month default
+            document.getElementById('custom-payment-month').value = document.getElementById('start-month').value;
+            document.getElementById('custom-payment-year').value = document.getElementById('start-year').value;
+
+            // Initialize prepayment options based on default reduction selection
+            updatePrepaymentOptions();
+        }
+        
+        // Add styling for input fields and table cells using JavaScript (as Tailwind classes cannot be used in `style` block for components)
+        document.head.insertAdjacentHTML('beforeend', `
+            <style>
+                .input-field {
+                    /* Original input-field for select/non-grouped items */
+                    @apply w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150;
+                }
+                .summary-card {
+                    @apply p-4 rounded-xl shadow-md border;
+                }
+                .table-header {
+                    @apply px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider;
+                }
+                .table-cell {
+                    @apply px-4 py-3 whitespace-nowrap text-right;
+                }
+                .table-cell:first-child {
+                    @apply text-center;
+                }
+                
+                /* Adjust custom input groups in the prepayment section */
+                #custom-months-div .input-field {
+                    /* Ensure inputs in the custom prepayment grid use standard styling */
+                    @apply w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150;
+                }
+            </style>
+        `);
+
+    </script>
+</body>
+</html>
